@@ -1,19 +1,105 @@
-/*SPECIFICATION TO BE IMPLEMENTED:
-Implementare un programma che riceva in input tramite argv[] i pathname 
-associati ad N file, con N maggiore o uguale ad 1. 
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
 
-Per ognuno di questi file generi un processo che legga tutte le stringhe contenute in quel file e le scriva in un'area di memoria condivisa con il processo padre. Si 
-supponga per semplicita' che lo spazio necessario a memorizzare le stringhe
-di ognuno di tali file non ecceda 4KB. 
+struct sembuf oper; //struttura che contiene informazioni sulla operazione
+int sd1; // set di semafori, che poi popoliamo
 
-Il processo padre dovra' attendere che tutti i figli abbiano scritto in 
-memoria il file a loro associato, e successivamente dovra' entrare in pausa
-indefinita.
-D'altro canto, ogni figlio dopo aver scritto il contenuto del file nell'area 
-di memoria condivisa con il padre entrera' in pausa indefinita.
 
-L'applicazione dovra' gestire il segnale SIGINT (o CTRL_C_EVENT nel caso
-WinAPI) in modo tale che quando il processo padre venga colpito da esso dovra' 
-stampare a terminale il contenuto corrente di tutte le aree di memoria 
-condivisa anche se queste non sono state completamente popolate dai processi 
-figli.*/ 
+void *thread_pari(void *arg){
+	
+	for(int i = 0; i<10; i += 2){
+		//WAIT()
+		oper.sem_num = 0;
+		oper.sem_flg = 0;
+		oper.sem_op = -1;
+		
+		semop(sd1,&oper,1);//faccio effettivamente l'operazione
+		printf("%d\n",i);
+		
+		
+		//SIGNAL()
+		oper.sem_num= 1;
+		oper.sem_flg = 0;
+		oper.sem_op = 1;
+		
+		semop(sd1,&oper,1);//faccio effettivamente l'operazione
+	
+	}
+	
+	pthread_exit(NULL);
+}
+void *thread_dispari(void *arg){
+	
+	for(int i = 1; i<10; i += 2){
+	
+		//WAIT()
+		oper.sem_num = 1;
+		oper.sem_flg = 0;
+		oper.sem_op = -1;
+		
+		semop(sd1,&oper,1);//faccio effettivamente l'operazione
+		printf("%d\n",i);
+		
+		
+		//SIGNAL()
+		oper.sem_num= 0;
+		oper.sem_flg = 0;
+		oper.sem_op = 1;
+		
+		semop(sd1,&oper,1);//faccio effettivamente l'operazione
+	
+	}
+	pthread_exit(NULL);
+}
+
+int main(){
+
+	pthread_t t1,t2;
+	int ret;
+	long t;
+	
+	
+	sd1 = semget(IPC_PRIVATE,2,IPC_CREAT|0666);//creo 2 semafori
+	
+	
+	if(sd1 == -1){
+		printf("errore inizializzazione semaforo\n");
+		return(EXIT_FAILURE);
+	}
+	
+	
+	//SETTAGGIO X SEMAFORO PARI	
+	if(semctl(sd1,0,SETVAL,1)==-1){
+		printf("errore settaggio semaforo 1\n");
+		return(EXIT_FAILURE);
+	}
+	
+	//SETTAGGIO X SEMAFORO DISPARI
+	if(semctl(sd1,1,SETVAL,0)==-1){
+		printf("errore settaggio semaforo 2\n");
+		return(EXIT_FAILURE);
+	}
+	
+	if(pthread_create(&t1,NULL,thread_pari,(void*)t) != 0){//creo thread1
+		printf("errore\n");
+	}
+	
+	if(pthread_create(&t2,NULL,thread_dispari,(void*)t) != 0){//creo thread2
+		printf("errore\n");
+	}
+	
+	//ASPETTO I THREAD
+	pthread_join(t1,NULL);
+	pthread_join(t2,NULL);
+	
+	
+	//RIMUOVO I THREAD ALLA FINE DEL LORO LAVORO
+	semctl(sd1,0,IPC_RMID);
+	
+	return;
+	
+}
