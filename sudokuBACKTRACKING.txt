@@ -1,0 +1,96 @@
+#include <stdio.h>
+
+#define N 9
+
+// Codice meno efficiente
+
+// Funzione per stampare la griglia Sudoku
+void printSudoku(int sudoku[N][N]) {
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            printf("%2d", sudoku[i][j]);
+        }
+        printf("\n");
+    }
+}
+
+// Funzione di utilità per verificare se è sicuro assegnare un numero a una data cella
+int isSafe(int sudoku[N][N], int row, int col, int num) {
+    // Verifica la presenza del numero nella stessa riga e colonna
+    for (int x = 0; x < N; x++) {
+        if (sudoku[row][x] == num || sudoku[x][col] == num) {
+            return 0;
+        }
+    }
+
+    // Verifica la presenza del numero nella sottogriglia 3x3
+    int startRow = row - row % 3;
+    int startCol = col - col % 3;
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            if (sudoku[i + startRow][j + startCol] == num) {
+                return 0;
+            }
+        }
+    }
+
+    return 1;
+}
+
+// Funzione di backtracking per risolvere il Sudoku
+int solveSudoku(int sudoku[N][N]) {
+    for (int row = 0; row < N; row++) {
+        for (int col = 0; col < N; col++) {
+            // Cerca una cella vuota
+            if (sudoku[row][col] == 0) {
+                // Prova ad assegnare un numero da 1 a 9
+                for (int num = 1; num <= 9; num++) {
+                    if (isSafe(sudoku, row, col, num)) {
+                        // Se è sicuro, assegna il numero e continua con la ricorsione
+                        sudoku[row][col] = num;
+
+                        // Se la ricorsione restituisce true, allora la soluzione è stata trovata
+                        if (solveSudoku(sudoku)) {
+                            return 1;
+                        }
+
+                        // Se la soluzione non è stata trovata, annulla l'assegnazione e prova un altro numero
+                        sudoku[row][col] = 0;
+                    }
+                }
+
+                // Nessun numero può essere assegnato, torna indietro
+                return 0;
+            }
+        }
+    }
+
+    // Se tutte le celle sono state riempite, la soluzione è stata trovata
+    return 1;
+}
+
+int main() {
+    int sudoku[N][N] = {
+        {5, 3, 0, 0, 7, 0, 0, 0, 0},
+        {6, 0, 0, 1, 9, 5, 0, 0, 0},
+        {0, 9, 8, 0, 0, 0, 0, 6, 0},
+        {8, 0, 0, 0, 6, 0, 0, 0, 3},
+        {4, 0, 0, 8, 0, 3, 0, 0, 1},
+        {7, 0, 0, 0, 2, 0, 0, 0, 6},
+        {0, 6, 0, 0, 0, 0, 2, 8, 0},
+        {0, 0, 0, 4, 1, 9, 0, 0, 5},
+        {0, 0, 0, 0, 8, 0, 0, 7, 9}
+    };
+
+    printf("Sudoku originale:\n");
+    printSudoku(sudoku);
+
+    if (solveSudoku(sudoku)) {
+        printf("\nSoluzione:\n");
+        printSudoku(sudoku);
+    } else {
+        printf("\nNessuna soluzione trovata.\n");
+    }
+
+    return 0;
+}

@@ -1,0 +1,185 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+
+//VERSIONE SUPER EFFICIENTE
+
+
+// Struttura per rappresentare un nodo nella matrice sparsa
+typedef struct Node {
+    struct Node* left;
+    struct Node* right;
+    struct Node* up;
+    struct Node* down;
+    int row;
+    int col;
+} Node;
+
+// Funzione per inizializzare un nodo
+Node* createNode(int row, int col) {
+    Node* node = (Node*)malloc(sizeof(Node));
+    node->left = node->right = node->up = node->down = node;
+    node->row = row;
+    node->col = col;
+    return node;
+}
+
+// Funzione per coprire una colonna
+void coverColumn(Node* colNode) {
+    colNode->left->right = colNode->right;
+    colNode->right->left = colNode->left;
+
+    Node* i = colNode->down;
+    while (i != colNode) {
+        Node* j = i->right;
+        while (j != i) {
+            j->up->down = j->down;
+            j->down->up = j->up;
+            j = j->right;
+        }
+        i = i->down;
+    }
+}
+
+// Funzione per scoprire una colonna
+void uncoverColumn(Node* colNode) {
+    Node* i = colNode->up;
+    while (i != colNode) {
+        Node* j = i->left;
+        while (j != i) {
+            j->up->down = j;
+            j->down->up = j;
+            j = j->left;
+        }
+        i = i->up;
+    }
+    colNode->left->right = colNode;
+    colNode->right->left = colNode;
+}
+
+// Funzione principale di risoluzione
+int solveSudoku(Node* header) {
+    if (header->right == header) {
+        // Tutte le colonne sono coperte, soluzione trovata
+        return 1;
+    }
+
+    // Trova la colonna con il minor numero di 1
+    Node* colNode = header->right;
+    Node* j = colNode->right;
+    while (j != header) {
+        if (j->col < colNode->col) {
+            colNode = j;
+        }
+        j = j->right;
+    }
+
+    coverColumn(colNode);
+
+    Node* i = colNode->down;
+    while (i != colNode) {
+        Node* j = i->right;
+        while (j != i) {
+            coverColumn(j);
+            j = j->right;
+        }
+
+        if (solveSudoku(header)) {
+            // Soluzione trovata
+            return 1;
+        }
+
+        j = i->left;
+        while (j != i) {
+            uncoverColumn(j);
+            j = j->left;
+        }
+
+        i = i->down;
+    }
+
+    uncoverColumn(colNode);
+
+    return 0;
+}
+
+// Funzione principale per risolvere il Sudoku
+void solveSudokuMain(int sudoku[9][9]) {
+    // Creare la matrice sparsa
+    Node* header = createNode(-1, -1);
+    Node* nodes[729];  // 9x9x9 possibili combinazioni
+    int nodeIndex = 0;
+
+    // Inizializzare la matrice sparsa
+    for (int i = 0; i < 9; ++i) {
+        for (int j = 0; j < 9; ++j) {
+            for (int num = 1; num <= 9; ++num) {
+                if (sudoku[i][j] == 0 || sudoku[i][j] == num) {
+                    Node* node = createNode(i * 81 + j * 9 + num - 1, i * 9 + j + 1);
+                    nodes[nodeIndex++] = node;
+                }
+            }
+        }
+    }
+
+    // Collegare i nodi nella matrice sparsa
+    for (int i = 0; i < nodeIndex; ++i) {
+        Node* node = nodes[i];
+        int row = node->row;
+        int col = node->col;
+
+        // Collega orizzontalmente
+        node->left = header->left;
+        node->right = header;
+        header->left->right = node;
+        header->left = node;
+
+        // Collega verticalmente
+        Node* current = header->down;
+        while (current->col != col && current != header) {
+            current = current->down;
+        }
+        node->up = current->up;
+        node->down = current;
+        current->up->down = node;
+        current->up = node;
+    }
+
+    // Risolvere il Sudoku
+    if (solveSudoku(header)) {
+        // Stampare la soluzione
+        Node* current = header->right;
+        while (current != header) {
+            int row = current->down->row;
+            int col = current->down->col;
+            int num = (row % 9) + 1;
+            sudoku[row / 9][col - 1] = num;
+            current = current->right;
+        }
+
+        // Stampa la soluzione
+        for (int i = 0; i < 9; ++i) {
+            for (int j = 0; j < 9; ++j) {
+                printf("%d ", sudoku[i][j]);
+            }
+            printf("\n");
+        }
+    } else {
+        printf("Nessuna soluzione trovata.\n");
+    }
+
+    // Libera la memoria
+    free(header);
+    for (int i = 0; i < nodeIndex; ++i) {
+        free(nodes[i]);
+    }
+}
+
+// Funzione principale
+int main() {
+    int sudoku[9][9] = {
+        {5, 3, 0, 0, 7, 0, 0, 0, 0},
+        {6, 0, 0, 1, 9, 5, 0, 0, 0},
+        {0, 9, 8, 0, 0, 0, 0, 6, 0},
+        {8, 0, 0, 0, 6, 0, 0, 0, 3},
+       
